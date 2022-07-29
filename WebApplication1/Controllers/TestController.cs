@@ -76,6 +76,37 @@ namespace WebApplication1.Controllers
             }
         }
 
+        [Route("editBook")]
+        [HttpPut]
+        public IActionResult EditBook(BookModel book)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest("Invalid data.");
+
+            RemoveFromJson(book.Id, "Book");
+            Thread.Sleep(600);
+
+            AddtoJson(book);
+            Thread.Sleep(600);
+
+            return Ok(JsonConvert.SerializeObject(GenerateBookList()));
+        }
+
+        [Route("deleteBook")]
+        [HttpDelete]
+        public IActionResult DeleteBook()
+        {
+            if (!ModelState.IsValid)
+                return BadRequest("Invalid data.");
+
+            var bookId = HttpContext.Request.Query["bookid"];
+
+            RemoveFromJson(Convert.ToInt32(bookId), "Book");
+            Thread.Sleep(600);
+
+            return Ok(JsonConvert.SerializeObject(GenerateBookList()));
+        }
+
         private List<BookModel> GenerateBookList()
         {
             var bookList = new List<BookModel>();
@@ -134,6 +165,25 @@ namespace WebApplication1.Controllers
 
             var expando = config as IDictionary<string, object>;
             expando.Add($"{t.Name.Remove(t.Name.Length - 5)}{props[0].GetValue(T)}", newinput);
+
+            var newJson = JsonConvert.SerializeObject(config, Formatting.Indented, jsonSettings);
+
+            System.IO.File.WriteAllText(appSettingsPath, newJson);
+        }
+
+        public void RemoveFromJson(int Id, string type)
+        {
+            var appSettingsPath = Path.Combine(System.IO.Directory.GetCurrentDirectory(), "appsettings.json");
+            var json = System.IO.File.ReadAllText(appSettingsPath);
+
+            var jsonSettings = new JsonSerializerSettings();
+            jsonSettings.Converters.Add(new ExpandoObjectConverter());
+            jsonSettings.Converters.Add(new StringEnumConverter());
+
+            dynamic config = JsonConvert.DeserializeObject<ExpandoObject>(json, jsonSettings);
+
+            var expando = config as IDictionary<string, object>;
+            expando.Remove($"{type}{Id}");
 
             var newJson = JsonConvert.SerializeObject(config, Formatting.Indented, jsonSettings);
 
