@@ -11,6 +11,7 @@ using System.Dynamic;
 using System.Reflection;
 using System.IO;
 using System.Threading;
+using WebApplication1.Model;
 
 namespace WebApplication1.Controllers
 {
@@ -49,8 +50,6 @@ namespace WebApplication1.Controllers
             }
             else
                 return StatusCode(500);
-
-
         }
 
         [Route("getAllCompany")]
@@ -107,7 +106,76 @@ namespace WebApplication1.Controllers
             return Ok(JsonConvert.SerializeObject(GenerateBookList()));
         }
 
-        private List<BookModel> GenerateBookList()
+        [Route("verifyUser")]
+        [HttpPost]
+        public IActionResult VerifyUser(UserModel user)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest("Invalid data.");
+
+            var userList = GenerateUserList();
+            var isValidUser = userList.Find(x => x.Username == user.Username && x.Password == user.Password)?.Id > 0 ? true : false;
+
+            if (isValidUser)            
+                return Ok();            
+            else
+                return StatusCode(401);
+        }
+
+        [Route("registerUser")]
+        [HttpPost]
+        public IActionResult RegisterUser(RegisterUserModel regUser)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest("Invalid data.");
+
+            var userList = GenerateUserList();
+            var count = userList.Count;
+            var userFound = userList.FindAll(x => x.Username == regUser.Username);
+
+            if (userFound.Count > 0)
+                return StatusCode(403, new
+                {
+                    message = "Username Already Exist",
+                    userName = regUser.Username
+                });
+
+            var user = new UserModel();
+            user.Id = userList.Count + 1;
+            user.Username = regUser.Username;
+            user.Password = regUser.Password;
+
+            AddtoJson(user);
+            Thread.Sleep(600);
+
+            var count1 = GenerateUserList().Count;
+            if (count1 - count == 1)
+            {
+                return Ok();
+            }
+            else
+                return StatusCode(500);
+        }
+
+        [Route("userNameAvailability")]
+        [HttpGet]
+        public IActionResult UserNameAvailability(string name)
+        {
+            var userList = GenerateUserList();
+            var userFound = userList.FindAll(x => x.Username == name);
+
+            if (userFound.Count > 0)
+                return StatusCode(403, new
+                {
+                    message = "Username Already Exist",
+                    userName = name
+                });
+            else
+                return Ok();
+
+        }
+
+            private List<BookModel> GenerateBookList()
         {
             var bookList = new List<BookModel>();
             for (var i = 0; i <= 100; i++)
@@ -145,6 +213,25 @@ namespace WebApplication1.Controllers
                     break;
             }
             return companyList;
+        }
+
+        private List<UserModel> GenerateUserList()
+        {
+            var userList = new List<UserModel>();
+            for (var i = 0; i <= 100; i++)
+            {
+                if (_config.GetValue<int>($"User{i + 1}:Id") > 0)
+                {
+                    UserModel user = new UserModel();
+                    user.Id = _config.GetValue<int>($"User{i + 1}:Id");
+                    user.Username = _config.GetValue<string>($"User{i + 1}:Username");
+                    user.Password = _config.GetValue<string>($"User{i + 1}:Password");
+                    userList.Add(user);
+                }
+                else
+                    break;
+            }
+            return userList;
         }
 
         private void AddtoJson<Object>(Object T)
